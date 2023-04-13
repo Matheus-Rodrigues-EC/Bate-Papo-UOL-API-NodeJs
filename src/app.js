@@ -30,63 +30,6 @@ mongoClient.connect()
 //------------------------------------------------------------------
 
 
-// Criar participante ----------------------------------------------
-app.post("/participants", (req, res) => {
-    const {name} = req.body;
-    const time = dayjs().format('HH:mm:ss');
-
-    if(nameSchema.validate({username: name}).error === undefined){  
-        // Verifica se o nome ja existe no banco ---------------------------
-        if(participantsList !== undefined){
-            participantsList.find((user) => {
-                if(user.name === name){
-                    res.sendStatus(409);
-                    return;
-                }
-            });
-        }
-// Fim Verifica se o nome ja existe no banco------------------------
-
-
-// Adiciona o participante na lista de participantes----------------
-        db.collection("participants").insertOne({
-            name: name, 
-            lastStatus: Date.now()
-        })
-            .then(() => {
-                // res.sendStatus(201);
-// Envia a mensagem de status que o participante entrou na sala ----
-                db.collection("messages").insertOne({
-                    from: name, 
-                    to: 'Todos', 
-                    text: 'entra na sala...', 
-                    type: 'status', 
-                    time: time
-                })
-                .then(() => res.sendStatus(201))
-                .catch();
-// Fim Envia a mensagem de status que o participante entrou na sala -
-            })
-            .catch((error) => {
-                res.status(500).send(error.message);
-            });
-
-            db.collection("participants").find().toArray()
-            .then((participants) => {
-                participantsList = participants;
-            })
-            .catch((error) => {
-                res.status(500).send(error.message);
-                return;
-            });
-// Fim Adiciona o participante na lista de participantes -----------
-    }else{
-        res.sendStatus(422);
-    }
-
-});
-// Fim Criar participante ------------------------------------------
-
 // Listar Participantes --------------------------------------------
 
 app.get("/participants", (req, res) => {
@@ -104,6 +47,74 @@ app.get("/participants", (req, res) => {
 })
 
 // Fim Listar Participantes ----------------------------------------
+
+
+// Criar participante ----------------------------------------------
+app.post("/participants", (req, res) => {
+    const {name} = req.body;
+    const time = dayjs().format('HH:mm:ss');
+
+    if(nameSchema.validate({username: name}).error === undefined){
+// Faz a validação do nome de usuário
+        if(participantsList.find((user) => user.name === name)){
+            // console.log(`User ${name} finded`);
+            return res.sendStatus(409);
+        }else{
+            // createParticipant(name);
+            db.collection("participants").insertOne({
+                name: name,
+                lastStatus: Date.now()
+            })
+            .then(() => {
+                db.collection("messages").insertOne({
+                    from: name, 
+                    to: 'Todos', 
+                    text: 'entra na sala...', 
+                    type: 'status', 
+                    time: time
+                })
+                res.sendStatus(201)
+            })
+            .catch(() => {
+                console.log("Algum erro ocorreu ESTOU NO ELSE")
+                
+            });
+        }
+    }else{
+        res.sendStatus(422);
+    }
+
+})
+
+function createParticipant(name){
+        db.collection("participants").insertOne({
+            name: name,
+            lastStatus: Date.now()
+        })
+        .then(() => {
+            db.collection("messages").insertOne({
+                from: name, 
+                to: 'Todos', 
+                text: 'entra na sala...', 
+                type: 'status', 
+                time: time
+            })
+            res.sendStatus(201)
+        })
+        .catch(() => {
+            console.log("Algum erro ocorreu ESTOU NO ELSE")
+            
+        });
+}
+// Fim Criar participante ------------------------------------------
+
+
+
+
+
+
+
+
 
 
 // Declaração da porta e configuração do servidor para ficar ouvindo na porta
