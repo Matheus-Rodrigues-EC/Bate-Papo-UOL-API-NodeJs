@@ -3,6 +3,9 @@ import cors from 'cors';
 import { MongoClient } from 'mongodb';
 import Joi from 'joi';
 import dayjs from 'dayjs';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 app.use(cors());
@@ -16,36 +19,26 @@ const nameSchema = Joi.object({
         .required()
 })
 
-// Declaração da porta e configurando o servidor para ficar ouvindo nessa porta
-const port = 5000;
-app.listen((port) => console.log(`Server is running at port ${port}`));
-//------------------------------------------------------------------
-
-
 // Conexão com o Banco
 const mongoClient = new MongoClient(process.env.DATABASE_URL);
 let db;
+let participantsList;
 
 mongoClient.connect()
-    .then(() => db = mongoClient.db())
+    .then(() => console.log("DataBase Connected..."))
     .catch((error) => console.log(error.message));
 //------------------------------------------------------------------
 
 
 // Criar participante ----------------------------------------------
 app.post("/participants", (req, res) => {
-    const {nameP} = req.body;
+    const {name} = req.body;
     const time = dayjs().format('HH:mm:ss');
-    const participantList = [];
 
-// Verifica se o nome ja existe no banco ---------------------------
-    if(nameSchema.validate({username: nameP}).error === undefined){  
-        db.collection("participants").find().toArray()
-            .then(() => participantList = mongoClient.db())
-            .catch((error) => console.log(error.message));
-
-        participantList.filter((user) => {
-            if(user.name === nameP){
+    if(nameSchema.validate({username: name}).error === undefined){  
+        // Verifica se o nome ja existe no banco ---------------------------
+        participantsList.find((user) => {
+            if(user.name === name){
                 res.sendStatus(409);
                 return;
             }
@@ -55,24 +48,36 @@ app.post("/participants", (req, res) => {
 
 // Adiciona o participante na lista de participantes----------------
         db.collection("participants").insertOne({
-            name: nameP, 
+            name: name, 
             lastStatus: Date.now()
         })
             .then(() => {
                 // res.sendStatus(201);
 // Envia a mensagem de status que o participante entrou na sala ----
                 db.collection("messages").insertOne({
-                    from: nameP, 
+                    from: name, 
                     to: 'Todos', 
                     text: 'entra na sala...', 
                     type: 'status', 
                     time: time
                 })
-                .then(() => res.sendStatus(201))
-                .catch((error) => {res.status(500).send(error.message); return;});
+                .then()
+                .catch();
 // Fim Envia a mensagem de status que o participante entrou na sala -
             })
-            .catch((error) => console.log(error.message));
+            .catch((error) => {
+                res.status(500).send(error.message); 
+                return;
+            });
+
+            db.collection("participants").find().toArray()
+            .then((participants) => {
+                participantsList = participants;
+            })
+            .catch((error) => {
+                res.status(500).send(error.message);
+                return;
+            });
 // Fim Adiciona o participante na lista de participantes -----------
     }else{
         res.sendStatus(422);
@@ -80,3 +85,27 @@ app.post("/participants", (req, res) => {
 
 });
 // Fim Criar participante ------------------------------------------
+
+// Listar Participantes --------------------------------------------
+
+app.get("/participants", (req, res) => {
+    db = mongoClient.db()
+    db.collection("participants").find().toArray()
+        .then((participants) => {
+            participantsList = participants;
+            res.send(participants);
+            // console.log(participantsList);
+        })
+        .catch((error) => {
+            res.status(500).send(error.message);
+            return;
+        });
+})
+
+// Fim Listar Participantes ----------------------------------------
+
+
+// Declaração da porta e configuração do servidor para ficar ouvindo na porta
+const PORT = 5000;
+app.listen(PORT, () => console.log(`Server is running at port ${PORT}`));
+//------------------------------------------------------------------
