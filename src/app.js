@@ -37,12 +37,14 @@ app.post("/participants", (req, res) => {
 
     if(nameSchema.validate({username: name}).error === undefined){  
         // Verifica se o nome ja existe no banco ---------------------------
-        participantsList.find((user) => {
-            if(user.name === name){
-                res.sendStatus(409);
-                return;
-            }
-        });
+        if(participantsList !== undefined){
+            participantsList.find((user) => {
+                if(user.name === name){
+                    res.sendStatus(409);
+                    return;
+                }
+            });
+        }
 // Fim Verifica se o nome ja existe no banco------------------------
 
 
@@ -61,13 +63,12 @@ app.post("/participants", (req, res) => {
                     type: 'status', 
                     time: time
                 })
-                .then()
+                .then(() => res.sendStatus(201))
                 .catch();
 // Fim Envia a mensagem de status que o participante entrou na sala -
             })
             .catch((error) => {
-                res.status(500).send(error.message); 
-                return;
+                res.status(500).send(error.message);
             });
 
             db.collection("participants").find().toArray()
