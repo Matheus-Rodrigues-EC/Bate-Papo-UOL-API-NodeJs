@@ -26,7 +26,6 @@ const messageSchema = Joi.object({
         .required(),
     
     Text: Joi.string()
-        .alphanum()
         .min(1)
         .required(),
     
@@ -120,7 +119,7 @@ app.post("/messages", (req, res) => {
     const { user } = req.headers;
     const time = dayjs().format("H:mm:ss");
     
-    if(messageSchema.validate({To: to, Text: text, Type: type}.error === undefined)){
+    if(messageSchema.validate({To: to, Text: text, Type: type}).error === undefined){
         if(participantsList.find((participant) => participant.name === user)){
             db.collection("messages").insertOne({
                 from: user, 
@@ -129,14 +128,14 @@ app.post("/messages", (req, res) => {
                 type: type, 
                 time: time
             })
-            .then(() => res.sendStatus(201))
-            .catch(() => res.sendStatus(422));
+            .then(() => {return res.sendStatus(201)})
+            .catch(() => {return res.sendStatus(422)});
         }else{
-            res.sendStatus(422);
+            // console.log(messageSchema.validate({To: to, Text: text, Type: type}.error));
+            return res.sendStatus(422);
         }
-        // console.log(to, text, type)
     }else{
-        res.sendStatus(422)
+        return res.sendStatus(422);
     }
 
 })
