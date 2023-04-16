@@ -161,7 +161,7 @@ app.post("/messages", async (req, res) => {
         }
 
         try{
-            db.collection("messages").insertOne({
+            await db.collection("messages").insertOne({
                 from: user, 
                 to: to, 
                 text: text, 
