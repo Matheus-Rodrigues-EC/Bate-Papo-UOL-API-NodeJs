@@ -19,6 +19,22 @@ const nameSchema = Joi.object({
         .required()
 })
 
+const messageSchema = Joi.object({
+    To: Joi.string()
+        .alphanum()
+        .min(1)
+        .required(),
+    
+    Text: Joi.string()
+        .alphanum()
+        .min(1)
+        .required(),
+    
+    Type: Joi.string()
+        .valid("message", "private_message")
+        .required()
+})
+
 // Conexão com o Banco
 const mongoClient = new MongoClient(process.env.DATABASE_URL);
 let db;
@@ -30,7 +46,7 @@ mongoClient.connect()
 //------------------------------------------------------------------
 
 
-// Listar Participantes --------------------------------------------
+// GET Participantes --------------------------------------------
 
 app.get("/participants", (req, res) => {
     db = mongoClient.db()
@@ -46,10 +62,10 @@ app.get("/participants", (req, res) => {
         });
 })
 
-// Fim Listar Participantes ----------------------------------------
+// Fim GET Participantes ----------------------------------------
 
 
-// Criar participante ----------------------------------------------
+// POST participante ----------------------------------------------
 app.post("/participants", (req, res) => {
     const {name} = req.body;
     const time = dayjs().format('HH:mm:ss');
@@ -60,7 +76,6 @@ app.post("/participants", (req, res) => {
             // console.log(`User ${name} finded`);
             return res.sendStatus(409);
         }else{
-            // createParticipant(name);
             db.collection("participants").insertOne({
                 name: name,
                 lastStatus: Date.now()
@@ -85,34 +100,70 @@ app.post("/participants", (req, res) => {
     }
 
 })
+// Fim POST participante ------------------------------------------
 
-function createParticipant(name){
-        db.collection("participants").insertOne({
-            name: name,
-            lastStatus: Date.now()
-        })
-        .then(() => {
+
+// GET Messages ---------------------------------------------------
+
+app.get("/messages", (req, res) => {
+    console.log("ainda não implementado")
+    res.sendStatus(200)
+})
+
+// Fim GET Messages -----------------------------------------------
+
+
+// POST Messages --------------------------------------------------
+
+app.post("/messages", (req, res) => {
+    const { to, text, type } = req.body;
+    const { user } = req.headers;
+    const time = dayjs().format("H:mm:ss");
+    
+    if(messageSchema.validate({To: to, Text: text, Type: type}.error === undefined)){
+        if(participantsList.find((participant) => participant.name === user)){
             db.collection("messages").insertOne({
-                from: name, 
-                to: 'Todos', 
-                text: 'entra na sala...', 
-                type: 'status', 
+                from: user, 
+                to: to, 
+                text: text, 
+                type: type, 
                 time: time
             })
-            res.sendStatus(201)
-        })
-        .catch(() => {
-            console.log("Algum erro ocorreu ESTOU NO ELSE")
-            
-        });
-}
-// Fim Criar participante ------------------------------------------
+            .then(() => res.sendStatus(201))
+            .catch(() => res.sendStatus(422));
+        }else{
+            res.sendStatus(422);
+        }
+        // console.log(to, text, type)
+    }else{
+        res.sendStatus(422)
+    }
+
+})
+
+// Fim POST Messages
 
 
+// POST Status
 
+app.post("/status", (req, res) => {
+    const { user } = req.headers;
+    // console.log(user);
+    if(user){
+        if(participantsList.find((participant) => participant.name === user)){
+            db.collection("participants").updateOne({name: user},{$set:{lastStatus:Date.now()}})
+            // WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+                .then(() => res.status(200).send("Deu certo aqui oh"))
+                .catch()
+        }else{
+            res.sendStatus(404);
+        }
+    }else{
+        res.sendStatus(404)
+    }
+})
 
-
-
+// Fim POST Status
 
 
 
