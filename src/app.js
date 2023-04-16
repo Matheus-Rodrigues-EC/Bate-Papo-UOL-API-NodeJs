@@ -93,7 +93,7 @@ app.post("/participants", async (req, res) => {
 
     // Faz a validação do nome de usuário
     if(nameSchema.validate({username: name}).error !== undefined){
-        return sendStatus(422);
+        return res.sendStatus(422);
     }else{
 
         try{
@@ -206,22 +206,27 @@ app.post("/status", async (req, res) => {
 // Remoção automática AFK
 
 // setInterval(() => {
-//     const now = Date.now() - 10000;
-//     app.get("/participants", (req, res) => {
-//         db.collection("participants").find( { lastStatus: { $lt: now} } ).toArray()
-//         .then((participantsAFK) => {
-//             console.log(participantsAFK);
-//             db.collection("teste").insertMany(participantsAFK)
-//                 .then(() => {
-//                     console.log("Adicionou oh");
-//                     res.sendStatus(201); 
+//     // const now = Date.now() - 10000;
+//     app.get("/participants", async (req, res) => {
+        
+//         try{
+//             const usersAFK = await db.collection("participants").find( { lastStatus: { $lt: now} } ).toArray()
+//             usersAFK.map(async (userI) => {
+//                 await db.collection("messages").insertOne({
+//                     from: userI.from, 
+//                     to: 'Todos', 
+//                     text: 'sai da sala...', 
+//                     type: 'status', 
+//                     time: Date.now()
 //                 })
-//                 .catch(() => {
-//                     console.log("vish, deu ruim");
-//                     res.sendStatus(402); 
-//                 })
-//         })
-//         .catch(() => res.sendStatus(404))
+
+//                 await db.collection("participants").deleteOne( { name: userI.from } )
+//             })
+//             return res.sendStatus(202);
+//         }catch(error){
+//             return res.sendStatus(500);
+//         }
+        
 //     })
 // }, 15000)
 
