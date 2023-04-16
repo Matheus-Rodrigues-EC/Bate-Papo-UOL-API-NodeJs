@@ -34,6 +34,12 @@ const messageSchema = Joi.object({
         .required()
 })
 
+const limitSchema = Joi.object({
+    Limit: Joi.number()
+        .min(1)
+        // .pattern(new RegExp('^[0-9]+$'))
+})
+
 // Conexão com o Banco
 const mongoClient = new MongoClient(process.env.DATABASE_URL);
 let db;
@@ -105,8 +111,23 @@ app.post("/participants", (req, res) => {
 // GET Messages ---------------------------------------------------
 
 app.get("/messages", (req, res) => {
-    console.log("ainda não implementado")
-    res.sendStatus(200)
+    const {user} = req.headers;
+    const {limit} = req.query;
+    
+    if((limitSchema.validate({Limit: limit}).error)){
+        return res.sendStatus(422);
+    }
+    else{
+        db.collection("messages").find( { $or: [ {to: "Todos"}, { to: user }, { from: user } ] } ).toArray()
+        .then((messages) => {
+            if(limit){
+                return res.status(200).send(messages.slice(-limit));
+            }else{
+                return res.status(200).send(messages);
+            }
+        })
+        .catch(() => {return res.sendStatus(422)})
+    }
 })
 
 // Fim GET Messages -----------------------------------------------
