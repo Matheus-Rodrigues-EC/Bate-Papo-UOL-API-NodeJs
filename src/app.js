@@ -193,18 +193,25 @@ app.post("/messages", async (req, res) => {
 // POST Status
 
 app.post("/status", async (req, res) => {
-    const { User } = req.headers;
-    
-    if(!User){
-        return res.sendStatus(404);
-    }
+    const User = req.headers.user;
 
-    if(!participantsList.find((participant) => participant.name === User)){
-        return res.sendStatus(404);   
+    if(!User) return res.sendStatus(404);
+
+    // Carrega a lista de participantes
+    try{
+        const participants = await db.collection("participants").find().toArray()
+        if(participants){
+            participantsList = participants;
+        }
+    }catch(error){
+        return res.status(500).send(error.message);
     }
+    
+    if(!participantsList.find((participant) => participant.name === User)) return res.sendStatus(404);   
 
     try{
-        await db.collection("participants").updateOne({name: User},{$set:{lastStatus:Date.now()}})
+        const time = Date.now()
+        await db.collection("participants").updateOne({name: User},{$set:{lastStatus: time}})
         return res.sendStatus(200);
     }catch(error){
         return res.sendStatus(404);
@@ -215,8 +222,7 @@ app.post("/status", async (req, res) => {
 
 
 // Remoção automática AFK
-let UsersAFK;
-setInterval(async () => {
+setInterval(async (UsersAFK) => {
     const now = Date.now() - 10000;
         try{
             UsersAFK = await db.collection("participants").find( { lastStatus: { $lt: now} } ).toArray()
@@ -247,7 +253,6 @@ setInterval(async () => {
         }catch(error){
             console.log(error)
         }
-    console.log("passou 15 segundos...")
 }, 15000)
 
 // Fim Remoção automática AFK
