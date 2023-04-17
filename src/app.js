@@ -221,39 +221,82 @@ app.post("/status", async (req, res) => {
 // Fim POST Status
 
 
-// Remoção automática AFK
-setInterval(async (UsersAFK) => {
-    const now = Date.now() - 10000;
-        try{
-            UsersAFK = await db.collection("participants").find( { lastStatus: { $lt: now} } ).toArray()
-            console.log(UsersAFK)
-            for (const participante of UsersAFK) {
-                console.log(participante.name)
-                await db.collection("participants").deleteOne({ name: participante.name  });
-                const mensagemStatus = { 
-                    from: participante.name, 
-                    to: 'Todos', 
-                    text: 'sai da sala...', 
-                    type: 'status', 
-                    time: dayjs().format("HH:mm:ss") 
-                };
-                await db.collection("messages").insertOne(mensagemStatus);
-                // Carrega a lista de participantes
-                try{
-                    const participants = await db.collection("participants").find().toArray()
-                    if(participants){
-                        participantsList = participants;
-                    }
-                }catch(error){
-                    return res.status(500).send(error.message);
-                }
-                console.log(`Participante ${participante.name} removido e mensagem de status adicionada ao banco.`);
-            }
-            
-        }catch(error){
-            console.log(error)
+// Delete message
+
+app.delete("/messages/:ID", async (req, res) => {
+    const User = req.headers.user;
+    const id = req.params.ID;
+
+    if(!User) return res.sendStatus(404);
+
+    if(!id) return res.sendStatus(404)
+
+    // Carrega a lista de participantes
+    try{
+        const participants = await db.collection("participants").find().toArray()
+        if(participants){
+            participantsList = participants;
         }
-}, 15000)
+    }catch(error){
+        return res.status(500).send(error.message);
+    }
+
+    if(!participantsList.find((participant) => participant.name === User)){
+        return res.sendStatus(404);
+    }
+
+    try{
+        const messagesList = await db.collection("messages").findOne( {_id: new ObjectId(id)} );
+        if(messagesList.from !== User) return res.sendStatus(401);
+
+        if(!messagesList) {console.log("entrou aqui"); return res.sendStatus(404); };
+
+        await db.collection("messages").deleteOne( {_id: new ObjectId(id)} )
+        
+        return res.sendStatus(200);
+    }catch(error){
+        
+        return res.sendStatus(404);
+    }
+    
+})
+
+// Fim Delete Message
+
+
+// Remoção automática AFK
+// setInterval(async (UsersAFK) => {
+//     const now = Date.now() - 10000;
+//         try{
+//             UsersAFK = await db.collection("participants").find( { lastStatus: { $lt: now} } ).toArray()
+//             console.log(UsersAFK)
+//             for (const participante of UsersAFK) {
+//                 console.log(participante.name)
+//                 await db.collection("participants").deleteOne({ name: participante.name  });
+//                 const mensagemStatus = { 
+//                     from: participante.name, 
+//                     to: 'Todos', 
+//                     text: 'sai da sala...', 
+//                     type: 'status', 
+//                     time: dayjs().format("HH:mm:ss") 
+//                 };
+//                 await db.collection("messages").insertOne(mensagemStatus);
+//                 // Carrega a lista de participantes
+//                 try{
+//                     const participants = await db.collection("participants").find().toArray()
+//                     if(participants){
+//                         participantsList = participants;
+//                     }
+//                 }catch(error){
+//                     return res.status(500).send(error.message);
+//                 }
+//                 console.log(`Participante ${participante.name} removido e mensagem de status adicionada ao banco.`);
+//             }
+            
+//         }catch(error){
+//             console.log(error)
+//         }
+// }, 15000)
 
 // Fim Remoção automática AFK
 
