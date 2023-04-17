@@ -125,7 +125,7 @@ app.post("/participants", async (req, res) => {
 // GET Messages ---------------------------------------------------
 
 app.get("/messages", async(req, res) => {
-    const {User} = req.headers;
+    const {user} = req.headers;
     const {limit} = req.query;
     
     if((limitSchema.validate({Limit: limit}).error)){
@@ -133,7 +133,7 @@ app.get("/messages", async(req, res) => {
     }
     
     try{
-        const messages = await db.collection("messages").find( { $or: [ {to: "Todos"}, { to: User }, { from: User } ] } ).toArray()
+        const messages = await db.collection("messages").find( { $or: [ {to: "Todos"}, { from: user }, {$and: [{ to: user },  {type: "private_message"}]} ] } ).toArray()
         if(limit){
             return res.status(200).send(messages.slice(-limit));
         }else{
