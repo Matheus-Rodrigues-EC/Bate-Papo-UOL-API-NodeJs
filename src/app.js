@@ -283,20 +283,21 @@ app.put("/messages/:ID", async (req, res) => {
     }
     
     if(messageSchema.validate({To: to, Text: text, Type: type}).error !== undefined){
-        console.log(messageSchema.validate({To: to, Text: text, Type: type}).error)
+        // console.log(messageSchema.validate({To: to, Text: text, Type: type}).error)
         return res.sendStatus(422);
     }
 
     if(!participantsList.find((participant) => participant.name === User)){
-        return res.sendStatus(422);
+        // console.log(participantsList)
+        return res.sendStatus(401);
     }
 
     try{
         const messagesList = await db.collection("messages").findOne( {_id: new ObjectId(id)} );
+        if(messagesList.from !== User) return res.sendStatus(401);
         
         if(!messagesList) return res.sendStatus(404)
         
-        if(messagesList.from !== User) return res.sendStatus(401);
 
         await db.collection("messages").updateOne({_id: new ObjectId(id)},{$set:{ to, text, type }})
         return res.sendStatus(200);
@@ -315,7 +316,7 @@ setInterval(async (UsersAFK) => {
             UsersAFK = await db.collection("participants").find( { lastStatus: { $lt: now} } ).toArray()
             console.log(UsersAFK)
             for (const participante of UsersAFK) {
-                console.log(participante.name)
+                // console.log(participante.name)
                 await db.collection("participants").deleteOne({ name: participante.name  });
                 const mensagemStatus = { 
                     from: participante.name, 
