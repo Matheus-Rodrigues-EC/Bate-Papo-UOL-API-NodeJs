@@ -11,8 +11,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// schemas de Validação com JOI
 const nameSchema = Joi.object({
-    username: Joi.string()
+    Username: Joi.string()
         .alphanum()
         .min(2)
         .max(50)
@@ -39,6 +40,7 @@ const limitSchema = Joi.object({
         .min(1)
         // .pattern(new RegExp('^[0-9]+$'))
 })
+// Fim schemas de Validação com JOI
 
 // Conexão com o Banco
 const mongoClient = new MongoClient(process.env.DATABASE_URL);
@@ -85,14 +87,15 @@ app.post("/participants", async (req, res) => {
     }catch(error){
         return res.status(500).send(error.message);
     }
+
     // Verifica se o nome ja está na lista de participantes
-    if(participantsList.find((user) => user.name === name)){
+    if(participantsList.find((User) => User.name === name)){
         // console.log(`User ${name} finded`);
         return res.sendStatus(409);
     }
 
     // Faz a validação do nome de usuário
-    if(nameSchema.validate({username: name}).error !== undefined){
+    if(nameSchema.validate({Username: name}).error !== undefined){
         return res.sendStatus(422);
     }else{
 
@@ -110,8 +113,7 @@ app.post("/participants", async (req, res) => {
             })
             return res.sendStatus(201)
             
-        }catch(error){  
-            console.log("Algum erro ocorreu ESTOU NO ELSE")
+        }catch(error){
             return res.sendStatus(422);
         }
     }
@@ -123,7 +125,7 @@ app.post("/participants", async (req, res) => {
 // GET Messages ---------------------------------------------------
 
 app.get("/messages", async(req, res) => {
-    const {user} = req.headers;
+    const {User} = req.headers;
     const {limit} = req.query;
     
     if((limitSchema.validate({Limit: limit}).error)){
@@ -131,7 +133,7 @@ app.get("/messages", async(req, res) => {
     }
     
     try{
-        const messages = await db.collection("messages").find( { $or: [ {to: "Todos"}, { to: user }, { from: user } ] } ).toArray()
+        const messages = await db.collection("messages").find( { $or: [ {to: "Todos"}, { to: User }, { from: User } ] } ).toArray()
         if(limit){
             return res.status(200).send(messages.slice(-limit));
         }else{
@@ -149,20 +151,30 @@ app.get("/messages", async(req, res) => {
 
 app.post("/messages", async (req, res) => {
     const { to, text, type } = req.body;
-    const user = req.headers.user;
-    const time = dayjs().format("H:mm:ss");
-    console.log(req.headers)
+    const User = req.headers.user;
+    const time = dayjs().format("HH:mm:ss");
+
+    // Carrega a lista de participantes
+    try{
+        const participants = await db.collection("participants").find().toArray()
+        if(participants){
+            participantsList = participants;
+        }
+    }catch(error){
+        return res.status(500).send(error.message);
+    }
     
     if(messageSchema.validate({To: to, Text: text, Type: type}).error !== undefined){
+        console.log(messageSchema.validate({To: to, Text: text, Type: type}).error)
         return res.sendStatus(422);
     }
-        if(!participantsList.find((participant) => participant.name === user)){
+        if(!participantsList.find((participant) => participant.name === User)){
             return res.sendStatus(422);
         }
 
         try{
             await db.collection("messages").insertOne({
-                from: user, 
+                from: User, 
                 to: to, 
                 text: text, 
                 type: type, 
@@ -170,11 +182,9 @@ app.post("/messages", async (req, res) => {
             })
             return res.sendStatus(201)
         }catch(error){
-            console.log(messageSchema.validate({To: to, Text: text, Type: type}).error)
+            console.log(error)
             return res.sendStatus(422)
         }
-        
-
 })
 
 // Fim POST Messages
@@ -183,18 +193,18 @@ app.post("/messages", async (req, res) => {
 // POST Status
 
 app.post("/status", async (req, res) => {
-    const { user } = req.headers;
+    const { User } = req.headers;
     
-    if(!user){
+    if(!User){
         return res.sendStatus(404);
     }
 
-    if(!participantsList.find((participant) => participant.name === user)){
+    if(!participantsList.find((participant) => participant.name === User)){
         return res.sendStatus(404);   
     }
 
     try{
-        await db.collection("participants").updateOne({name: user},{$set:{lastStatus:Date.now()}})
+        await db.collection("participants").updateOne({name: User},{$set:{lastStatus:Date.now()}})
         return res.sendStatus(200);
     }catch(error){
         return res.sendStatus(404);
@@ -205,16 +215,16 @@ app.post("/status", async (req, res) => {
 
 
 // Remoção automática AFK
-// let usersAFK;
+// let UsersAFK;
 // setInterval(() => {
 //     const now = Date.now() - 10000;
 //     app.get("/participants", async (req, res) => {
     
 //         try{
-//             usersAFK = await db.collection("participants").find( { lastStatus: { $lt: now} } ).toArray()
-//             console.log(usersAFK)
-//             for (const participante of usersAFK) {
-//                 await db.collection("participants").deleteOne({ _id: new ObjectId(usersAFK._id) });
+//             UsersAFK = await db.collection("participants").find( { lastStatus: { $lt: now} } ).toArray()
+//             console.log(UsersAFK)
+//             for (const participante of UsersAFK) {
+//                 await db.collection("participants").deleteOne({ _id: new ObjectId(UsersAFK._id) });
 //                 const mensagemStatus = { from: participante.from, to: 'Todos', text: 'sai da sala...', type: 'status', time: dayjs().format("HH:mm:ss") };
 //                 await db.collection("messages").insertOne(mensagemStatus);
 //                 console.log(`Participante ${participante.nome} removido e mensagem de status adicionada ao banco.`);
