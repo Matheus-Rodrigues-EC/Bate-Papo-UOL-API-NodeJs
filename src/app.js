@@ -272,6 +272,10 @@ app.put("/messages/:ID", async (req, res) => {
     const User = req.headers.user;
     const id = req.params.ID;
 
+    if(!User) return res.sendStatus(404);
+
+    if(!id) return res.sendStatus(404)
+
     // Carrega a lista de participantes
     try{
         const participants = await db.collection("participants").find().toArray()
@@ -293,16 +297,17 @@ app.put("/messages/:ID", async (req, res) => {
     }
 
     try{
+        // console.log(id)
         const messagesList = await db.collection("messages").findOne( {_id: new ObjectId(id)} );
-        if(messagesList.from !== User) return res.sendStatus(401);
-        
+        // console.log(messagesList)
         if(!messagesList) return res.sendStatus(404)
-        
+
+        if(messagesList.from !== User) return res.sendStatus(401);
 
         await db.collection("messages").updateOne({_id: new ObjectId(id)},{$set:{ to, text, type }})
         return res.sendStatus(200);
     }catch(error){
-        return res.sendStatus(500);
+        return res.status(500).send(error);
     }
 })
 
@@ -316,7 +321,7 @@ setInterval(async (UsersAFK) => {
             UsersAFK = await db.collection("participants").find( { lastStatus: { $lt: now} } ).toArray()
             console.log(UsersAFK)
             for (const participante of UsersAFK) {
-                // console.log(participante.name)
+                console.log(participante.name)
                 await db.collection("participants").deleteOne({ name: participante.name  });
                 const mensagemStatus = { 
                     from: participante.name, 
